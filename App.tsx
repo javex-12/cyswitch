@@ -1,14 +1,20 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameEngine } from './hooks/useGameEngine';
 import { SKINS, MAX_LEVEL } from './constants';
 import { GameState, PowerUpType, Skin } from './types';
 import GridTile from './components/GridTile';
 import { Controls } from './components/Controls';
 import { 
-  RotateCcw, Award, BrainCircuit, Zap, EyeOff, Pause, Play, 
-  MoreVertical, ChevronRight, Lock, Heart, X, Home, HelpCircle, Trash2 
+  RotateCcw, Award, BrainCircuit, Zap, Pause, Play, 
+  MoreVertical, ChevronRight, Lock, Heart, X, Home, HelpCircle, Trash2, Download
 } from 'lucide-react';
+
+// Custom event type for PWA installation
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 const App: React.FC = () => {
   const {
@@ -40,6 +46,26 @@ const App: React.FC = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [isLockingMode, setIsLockingMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  // Listen for PWA install event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+        setInstallPrompt(null);
+    }
+  };
 
   // Handle Tile Click
   const handleTileClick = (r: number, c: number) => {
@@ -301,7 +327,7 @@ const App: React.FC = () => {
                     )}
                 </div>
 
-                {/* PAUSED OVERLAY - Visual only, interaction handled by Menu now or direct Resume */}
+                {/* PAUSED OVERLAY */}
                 {gameState === GameState.PAUSED && !isMenuOpen && (
                     <div className="absolute inset-0 z-30 flex items-center justify-center">
                         <div className="bg-slate-900/90 backdrop-blur border border-white/10 p-8 rounded-2xl flex flex-col items-center shadow-2xl">
@@ -312,6 +338,19 @@ const App: React.FC = () => {
                              <button onClick={handleMenuToggle} className="text-slate-400 hover:text-white underline text-sm">
                                 More Options
                              </button>
+
+                             {/* PWA Install Button (Pause Screen) */}
+                             {installPrompt && (
+                                <div className="mt-8 pt-6 border-t border-white/10 w-full flex flex-col items-center animate-fade-in">
+                                    <p className="text-slate-400 text-xs mb-3 text-center">Install for offline play</p>
+                                    <button 
+                                        onClick={handleInstallClick} 
+                                        className="bg-slate-800 border border-slate-600 hover:bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 active:scale-95 transition-transform"
+                                    >
+                                        <Download size={16} className="text-purple-400"/> Install App
+                                    </button>
+                                </div>
+                             )}
                         </div>
                     </div>
                 )}
@@ -379,8 +418,18 @@ const App: React.FC = () => {
                         <X size={20} />
                     </button>
 
-                    <h2 className="text-2xl font-bold text-center mb-8 font-display tracking-wider text-white">SYSTEM</h2>
+                    <h2 className="text-2xl font-bold text-center mb-6 font-display tracking-wider text-white">SYSTEM</h2>
                     
+                    {/* PWA Install Button (Menu) */}
+                    {installPrompt && (
+                        <button
+                            onClick={handleInstallClick}
+                            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-6 shadow-lg shadow-purple-900/50 animate-pulse hover:scale-105 transition-transform"
+                        >
+                            <Download size={20} /> INSTALL APP
+                        </button>
+                    )}
+
                     <div className="flex flex-col gap-3">
                         {gameState !== GameState.MENU && gameState !== GameState.GAME_OVER && gameState !== GameState.WON && (
                             <>
