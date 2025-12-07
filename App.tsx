@@ -7,7 +7,7 @@ import GridTile from './components/GridTile';
 import { Controls } from './components/Controls';
 import { 
   RotateCcw, Award, BrainCircuit, Zap, Pause, Play, 
-  MoreVertical, ChevronRight, Lock, Heart, X, Home, HelpCircle, Trash2, Download
+  MoreVertical, ChevronRight, ChevronLeft, Lock, Heart, X, Home, HelpCircle, Trash2, Download
 } from 'lucide-react';
 
 // Custom event type for PWA installation
@@ -125,7 +125,7 @@ const App: React.FC = () => {
         startLevel(currentLevelNum);
     } else {
         // AI level restart isn't fully supported without re-gen, so we kick to menu or just reload prompt
-        setGameState(GameState.MENU);
+        setGameState(GameState.LEVEL_SELECT);
     }
   };
 
@@ -163,9 +163,11 @@ const App: React.FC = () => {
         
         <div className="flex flex-col items-center">
             <h1 className="text-xl font-display font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
-            {gameState === GameState.MENU ? 'CHAOTIC SHIFT' : `LEVEL ${currentLevelNum > 0 ? currentLevelNum : 'AI'}`}
+            {gameState === GameState.MENU ? 'CHAOTIC SHIFT' : 
+             gameState === GameState.LEVEL_SELECT ? 'MISSION SELECT' :
+             `LEVEL ${currentLevelNum > 0 ? currentLevelNum : 'AI'}`}
             </h1>
-            {gameState !== GameState.MENU && gameState !== GameState.GAME_OVER && (
+            {gameState !== GameState.MENU && gameState !== GameState.LEVEL_SELECT && gameState !== GameState.GAME_OVER && (
                  <span className="text-[10px] text-slate-400 tracking-widest uppercase">{gameState === GameState.PAUSED ? 'PAUSED' : gameState}</span>
             )}
         </div>
@@ -185,10 +187,62 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 w-full relative flex flex-col items-center justify-center p-2 overflow-hidden">
         
-        {/* MENU SCREEN */}
+        {/* WELCOME SCREEN (MENU) */}
         {gameState === GameState.MENU && (
+          <div className="flex flex-col items-center justify-center h-full gap-8 animate-fade-in w-full max-w-md">
+             {/* Big Title Animation */}
+             <div className="text-center space-y-2 mb-4">
+                <h1 className="text-6xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-rose-500 tracking-tighter drop-shadow-lg">
+                   CHAOTIC
+                </h1>
+                <h1 className="text-6xl font-display font-bold text-white tracking-[0.2em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                   SHIFT
+                </h1>
+                <div className="flex items-center justify-center gap-2 mt-4 text-slate-400 tracking-widest text-xs">
+                   <div className="h-px w-8 bg-slate-600"></div>
+                   <span>RESTORE ORDER. SURVIVE THE CHAOS.</span>
+                   <div className="h-px w-8 bg-slate-600"></div>
+                </div>
+             </div>
+
+             {/* Main Actions */}
+             <div className="flex flex-col gap-4 w-full px-8">
+                <button
+                   onClick={() => setGameState(GameState.LEVEL_SELECT)}
+                   className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 py-4 rounded-xl font-bold text-xl tracking-wider shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                   <Play fill="currentColor" size={24}/> START GAME
+                </button>
+
+                {installPrompt && (
+                   <button
+                      onClick={handleInstallClick}
+                      className="w-full bg-slate-800 border border-slate-700 hover:bg-slate-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                   >
+                      <Download size={18} className="text-purple-400" /> INSTALL APP
+                   </button>
+                )}
+             </div>
+
+             {/* Footer Info */}
+             <div className="absolute bottom-6 text-slate-600 text-xs text-center">
+                <p>v1.2.0 • AI POWERED • PWA READY</p>
+             </div>
+          </div>
+        )}
+
+        {/* LEVEL SELECT SCREEN */}
+        {gameState === GameState.LEVEL_SELECT && (
           <div className="w-full max-w-md h-full flex flex-col gap-4 animate-fade-in overflow-y-auto pb-20 px-2 scrollbar-hide">
              
+             {/* Back Button */}
+             <button 
+                onClick={() => setGameState(GameState.MENU)}
+                className="self-start flex items-center gap-1 text-slate-400 hover:text-white px-2 py-1 mb-2 text-sm font-bold active:scale-95 transition-transform"
+             >
+                <ChevronLeft size={16} /> BACK TO TITLE
+             </button>
+
              {/* Campaign Section */}
              <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/10">
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-cyan-400">
@@ -431,7 +485,7 @@ const App: React.FC = () => {
                     )}
 
                     <div className="flex flex-col gap-3">
-                        {gameState !== GameState.MENU && gameState !== GameState.GAME_OVER && gameState !== GameState.WON && (
+                        {gameState !== GameState.MENU && gameState !== GameState.LEVEL_SELECT && gameState !== GameState.GAME_OVER && gameState !== GameState.WON && (
                             <>
                                 <button 
                                     onClick={handleMenuToggle} 
@@ -466,7 +520,7 @@ const App: React.FC = () => {
                             <Home size={18} /> MAIN MENU
                         </button>
                         
-                        {gameState === GameState.MENU && (
+                        {(gameState === GameState.MENU || gameState === GameState.LEVEL_SELECT) && (
                             <button 
                                 onClick={handleClearData}
                                 className="mt-4 text-red-400/70 hover:text-red-400 text-xs flex items-center justify-center gap-1 py-2"
@@ -508,10 +562,10 @@ const App: React.FC = () => {
                  )}
                  
                  <button 
-                    onClick={() => setGameState(GameState.MENU)}
+                    onClick={() => setGameState(GameState.LEVEL_SELECT)}
                     className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-bold transition-all border border-slate-700"
                  >
-                    MENU
+                    MISSION SELECT
                  </button>
              </div>
            </div>

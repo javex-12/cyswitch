@@ -1,6 +1,7 @@
 
 export enum GameState {
   MENU = 'MENU',
+  LEVEL_SELECT = 'LEVEL_SELECT',
   MEMORIZING = 'MEMORIZING',
   PLAYING = 'PLAYING',
   PAUSED = 'PAUSED',
