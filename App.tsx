@@ -10,11 +10,7 @@ import {
   MoreVertical, ChevronRight, ChevronLeft, Lock, Heart, X, Home, HelpCircle, Trash2, Download
 } from 'lucide-react';
 
-// Custom event type for PWA installation
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-}
+const APP_DOWNLOAD_URL = "https://selar.com/256dd52w2n";
 
 const App: React.FC = () => {
   const {
@@ -47,25 +43,9 @@ const App: React.FC = () => {
   const [isLockingMode, setIsLockingMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
-  // Listen for PWA install event
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-        setInstallPrompt(null);
-    }
+  const handleDownloadApp = () => {
+    window.open(APP_DOWNLOAD_URL, '_blank');
   };
 
   // Handle Tile Click
@@ -222,19 +202,17 @@ const App: React.FC = () => {
                    <HelpCircle size={18} /> HOW TO PLAY
                 </button>
 
-                {installPrompt && (
-                   <button
-                      onClick={handleInstallClick}
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 animate-pulse"
-                   >
-                      <Download size={18} /> INSTALL APP
-                   </button>
-                )}
+                <button
+                  onClick={handleDownloadApp}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 animate-pulse shadow-lg"
+                >
+                  <Download size={18} /> DOWNLOAD APP
+                </button>
              </div>
 
              {/* Footer Info */}
              <div className="absolute bottom-6 text-slate-600 text-xs text-center">
-                <p>v1.2.0 • AI POWERED • PWA READY</p>
+                <p>v1.3.0 • AI POWERED • MOBILE READY</p>
              </div>
           </div>
         )}
@@ -401,18 +379,16 @@ const App: React.FC = () => {
                                 More Options
                              </button>
 
-                             {/* PWA Install Button (Pause Screen) */}
-                             {installPrompt && (
-                                <div className="mt-8 pt-6 border-t border-white/10 w-full flex flex-col items-center animate-fade-in">
-                                    <p className="text-slate-400 text-xs mb-3 text-center">Install for offline play</p>
-                                    <button 
-                                        onClick={handleInstallClick} 
-                                        className="bg-slate-800 border border-slate-600 hover:bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 active:scale-95 transition-transform"
-                                    >
-                                        <Download size={16} className="text-purple-400"/> Install App
-                                    </button>
-                                </div>
-                             )}
+                             {/* App Download Button (Pause Screen) */}
+                             <div className="mt-8 pt-6 border-t border-white/10 w-full flex flex-col items-center animate-fade-in">
+                                <p className="text-slate-400 text-xs mb-3 text-center">Get the full app experience</p>
+                                <button 
+                                    onClick={handleDownloadApp} 
+                                    className="bg-slate-800 border border-slate-600 hover:bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-bold flex items-center gap-2 active:scale-95 transition-transform"
+                                >
+                                    <Download size={16} className="text-purple-400"/> DOWNLOAD APP
+                                </button>
+                             </div>
                         </div>
                     </div>
                 )}
@@ -482,15 +458,13 @@ const App: React.FC = () => {
 
                     <h2 className="text-2xl font-bold text-center mb-6 font-display tracking-wider text-white">SYSTEM</h2>
                     
-                    {/* PWA Install Button (Menu) */}
-                    {installPrompt && (
-                        <button
-                            onClick={handleInstallClick}
-                            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-6 shadow-lg shadow-purple-900/50 animate-pulse hover:scale-105 transition-transform"
-                        >
-                            <Download size={20} /> INSTALL APP
-                        </button>
-                    )}
+                    {/* App Download Button (Menu) */}
+                    <button
+                        onClick={handleDownloadApp}
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 mb-6 shadow-lg shadow-purple-900/50 animate-pulse hover:scale-105 transition-transform"
+                    >
+                        <Download size={20} /> DOWNLOAD APP
+                    </button>
 
                     <div className="flex flex-col gap-3">
                         {gameState !== GameState.MENU && gameState !== GameState.LEVEL_SELECT && gameState !== GameState.GAME_OVER && gameState !== GameState.WON && (
