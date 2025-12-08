@@ -1,3 +1,4 @@
+
 const CACHE_NAME = 'chaotic-shift-v1';
 const ASSETS_TO_CACHE = [
   '/',

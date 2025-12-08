@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useGameEngine } from './hooks/useGameEngine';
 import { SKINS, MAX_LEVEL } from './constants';
 import { GameState, PowerUpType, Skin } from './types';
 import GridTile from './components/GridTile';
 import { Controls } from './components/Controls';
+import TutorialModal from './components/TutorialModal';
 import { 
   RotateCcw, Award, BrainCircuit, Zap, Pause, Play, 
   MoreVertical, ChevronRight, ChevronLeft, Lock, Heart, X, Home, HelpCircle, Trash2, Download
@@ -46,6 +46,7 @@ const App: React.FC = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [isLockingMode, setIsLockingMode] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   // Listen for PWA install event
@@ -214,12 +215,19 @@ const App: React.FC = () => {
                    <Play fill="currentColor" size={24}/> START GAME
                 </button>
 
+                <button
+                   onClick={() => setShowTutorial(true)}
+                   className="w-full bg-slate-800 border border-slate-600 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                >
+                   <HelpCircle size={18} /> HOW TO PLAY
+                </button>
+
                 {installPrompt && (
                    <button
                       onClick={handleInstallClick}
-                      className="w-full bg-slate-800 border border-slate-700 hover:bg-slate-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 animate-pulse"
                    >
-                      <Download size={18} className="text-purple-400" /> INSTALL APP
+                      <Download size={18} /> INSTALL APP
                    </button>
                 )}
              </div>
@@ -503,15 +511,13 @@ const App: React.FC = () => {
                             </>
                         )}
                         
-                        <div className="bg-slate-900/50 rounded-xl p-4 text-sm text-slate-300 mb-2">
-                            <h3 className="font-bold text-white mb-2 flex items-center gap-2"><HelpCircle size={16}/> HOW TO PLAY</h3>
-                            <ul className="space-y-1 list-disc pl-4 opacity-80">
-                                <li>Memorize the pattern before it vanishes.</li>
-                                <li>Rearrange tiles to match the target.</li>
-                                <li>Chaos Meter fills = Board Shifts & -1 Heart.</li>
-                                <li>Use the <strong>Eye</strong> to peek at the target.</li>
-                            </ul>
-                        </div>
+                        <button 
+                            onClick={() => { setShowTutorial(true); setIsMenuOpen(false); }}
+                            className="bg-slate-900/50 rounded-xl p-4 text-sm text-slate-300 mb-2 border border-slate-700 hover:bg-slate-800 flex items-center justify-between group transition-colors"
+                        >
+                            <span className="font-bold text-white flex items-center gap-2"><HelpCircle size={16}/> HOW TO PLAY</span>
+                            <span className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">WATCH &rarr;</span>
+                        </button>
 
                         <button 
                             onClick={handleExitToMenu} 
@@ -531,6 +537,11 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </div>
+        )}
+
+        {/* TUTORIAL MODAL */}
+        {showTutorial && (
+            <TutorialModal skin={currentSkin} onClose={() => setShowTutorial(false)} />
         )}
 
         {/* WIN / GAME OVER SCREEN */}
