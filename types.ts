@@ -30,6 +30,7 @@ export interface Level {
   gridSize: number;
   targetData: number[][]; // Simple number matrix for target
   chaosInterval: number; // ms
+  memorizeTime?: number; // Duration in seconds to show target before scrambling
 }
 
 export enum PowerUpType {

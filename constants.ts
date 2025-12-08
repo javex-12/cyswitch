@@ -62,35 +62,85 @@ export const SKINS: Skin[] = [
 export const MAX_LEVEL = 100;
 
 export const generateLevel = (level: number): Level => {
-  // Difficulty Scaling Logic
-  const gridSize = level <= 5 ? 3 : level <= 20 ? 4 : 5;
-  
-  // Colors available increases with level (max 6 colors)
-  const availableColors = Math.min(6, 2 + Math.floor((level - 1) / 15)); 
-  
-  // Chaos Interval (The "Health Drain" Speed)
-  // Lvl 1: 12 seconds (Very chill). 
-  // Lvl 100: ~3 seconds (Panic).
-  const chaosInterval = Math.max(3000, 12000 - ((level - 1) * 90));
-  
+  let gridSize = 3;
+  let availableColors = 2;
+  let chaosInterval = 10000;
+  let difficulty: Level['difficulty'] = 'Easy';
+  let emptyChance = 0.2;
+  let memorizeTime = 3; // Default
+
+  // --- NEW PROGRESSION LOGIC (BEGINNER FRIENDLY) ---
+  if (level <= 5) {
+    // PHASE 0: BABY STEPS (Levels 1-5)
+    // 3x3, 2 Colors.
+    // Very slow chaos (18s) and LONG look time (6s)
+    gridSize = 3;
+    availableColors = 2;
+    emptyChance = 0; 
+    chaosInterval = 18000; 
+    memorizeTime = 6;
+    difficulty = 'Easy';
+  } else if (level <= 10) {
+    // PHASE 1: WARMUP (Levels 6-10)
+    // Still 2 Colors. Speed up slightly.
+    gridSize = 3;
+    availableColors = 2; 
+    emptyChance = 0; 
+    chaosInterval = 15000; 
+    memorizeTime = 5;
+    difficulty = 'Easy';
+  } else if (level <= 20) {
+    // PHASE 2: GETTING COMFORTABLE (Levels 11-20)
+    // Add Green. Normal speed.
+    gridSize = 3;
+    availableColors = 3;
+    emptyChance = 0.1;
+    chaosInterval = 12000; 
+    memorizeTime = 4;
+    difficulty = 'Easy';
+  } else if (level <= 35) {
+    // PHASE 3: THE JUMP (Levels 21-35)
+    // Jump to 4x4. 
+    gridSize = 4;
+    availableColors = 3;
+    emptyChance = 0.15;
+    chaosInterval = 14000 - ((level - 20) * 200); 
+    memorizeTime = 4;
+    difficulty = 'Medium';
+  } else if (level <= 55) {
+    // PHASE 4: COMPLEXITY (Levels 36-55)
+    // 4x4. Add Yellow. Speed up.
+    gridSize = 4;
+    availableColors = 4;
+    emptyChance = 0.2;
+    chaosInterval = 11000 - ((level - 35) * 150); 
+    memorizeTime = 3;
+    difficulty = 'Hard';
+  } else {
+    // PHASE 5: INSANITY (Levels 56+)
+    // 5x5 grid. Max colors. Fast.
+    gridSize = 5;
+    availableColors = Math.min(6, 4 + Math.floor((level - 55) / 10));
+    emptyChance = 0.25;
+    chaosInterval = 12000 - ((level - 55) * 100); 
+    memorizeTime = 3;
+    difficulty = 'Insane';
+  }
+
+  // Absolute Cap for Speed (Never faster than 2.5s)
+  chaosInterval = Math.max(2500, chaosInterval);
+
   // Generate Pattern
   const targetData: number[][] = [];
   for (let r = 0; r < gridSize; r++) {
     const row: number[] = [];
     for (let c = 0; c < gridSize; c++) {
-      // 20% chance of empty tile for interest
-      const isEmpty = Math.random() < 0.2;
+      const isEmpty = Math.random() < emptyChance;
       const type = isEmpty ? 0 : Math.floor(Math.random() * availableColors) + 1;
       row.push(type);
     }
     targetData.push(row);
   }
-
-  // Determine difficulty label
-  let difficulty: Level['difficulty'] = 'Easy';
-  if (level > 10) difficulty = 'Medium';
-  if (level > 40) difficulty = 'Hard';
-  if (level > 80) difficulty = 'Insane';
 
   return {
     id: `level-${level}`,
@@ -98,6 +148,7 @@ export const generateLevel = (level: number): Level => {
     difficulty,
     gridSize,
     targetData,
-    chaosInterval
+    chaosInterval,
+    memorizeTime
   };
 };

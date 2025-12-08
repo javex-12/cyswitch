@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Tile, Skin } from '../types';
+import { Tile, Skin, PowerUpType } from '../types';
 import GridTile from './GridTile';
-import { Hand, X, BrainCircuit, Shuffle, CheckCircle, Play, RotateCcw } from 'lucide-react';
+import { Hand, X, BrainCircuit, Shuffle, CheckCircle, Play, RotateCcw, Lock, Snowflake, Turtle, Eye, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
 
 interface TutorialModalProps {
   onClose: () => void;
   skin: Skin;
 }
 
-// 2x2 Grid with 4 DISTINCT colors to ensure swaps are always visible
-// 1=Red, 2=Blue, 3=Green, 4=Yellow
+// 2x2 Grid with 4 DISTINCT colors
 const TARGET_GRID_DATA: Tile[][] = [
   [{ id: 't1', type: 1, isLocked: false }, { id: 't2', type: 2, isLocked: false }],
   [{ id: 't3', type: 3, isLocked: false }, { id: 't4', type: 4, isLocked: false }],
@@ -20,28 +19,37 @@ const TARGET_GRID_DATA: Tile[][] = [
 const cloneGrid = (grid: Tile[][]) => grid.map(row => row.map(t => ({ ...t })));
 
 const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
+  const [slide, setSlide] = useState(0); // 0: Intro/Basics, 1: Powerups
+  const TOTAL_SLIDES = 2;
+
+  // --- BASICS STATE ---
   const [mode, setMode] = useState<'WATCH' | 'INTERACTIVE'>('WATCH');
-  
-  // --- WATCH MODE STATE ---
-  const [demoStep, setDemoStep] = useState(0); // 0: Memorize, 1: Chaos, 2: Solve
+  const [demoStep, setDemoStep] = useState(0); 
   const [demoGrid, setDemoGrid] = useState<Tile[][]>(cloneGrid(TARGET_GRID_DATA));
   const [cursorPos, setCursorPos] = useState({ r: 0, c: 0, active: false });
-
-  // --- INTERACTIVE MODE STATE ---
+  
+  // Interactive Basics State
   const [testPhase, setTestPhase] = useState<'MEMORIZE' | 'SCRAMBLE' | 'SOLVE' | 'WON'>('MEMORIZE');
   const [userGrid, setUserGrid] = useState<Tile[][]>(cloneGrid(TARGET_GRID_DATA));
   const [selectedTile, setSelectedTile] = useState<{r: number, c: number} | null>(null);
   const [countDown, setCountDown] = useState(3);
 
-  // --- DEMO LOOP (WATCH MODE) ---
+  // --- POWERUPS STATE ---
+  const [activePowerDemo, setActivePowerDemo] = useState<PowerUpType | null>(null);
+  const [powerGrid, setPowerGrid] = useState<Tile[][]>(cloneGrid(TARGET_GRID_DATA));
+  const [chaosBarPercent, setChaosBarPercent] = useState(0);
+  const [powerMessage, setPowerMessage] = useState("Select a powerup to see it in action!");
+
+  // --------------------------------------------------------------------------
+  // SLIDE 1: BASICS DEMO LOOP
+  // --------------------------------------------------------------------------
   useEffect(() => {
-    if (mode !== 'WATCH') return;
+    if (slide !== 0 || mode !== 'WATCH') return;
 
     let timeout: ReturnType<typeof setTimeout>;
     let isCancelled = false;
 
     const runDemo = async () => {
-      // 1. Reset
       setDemoStep(0);
       setDemoGrid(cloneGrid(TARGET_GRID_DATA));
       setCursorPos({ r: -1, c: -1, active: false });
@@ -49,11 +57,9 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
       await new Promise(r => timeout = setTimeout(r, 1500)); 
       if (isCancelled) return;
 
-      // 2. Scramble
-      setDemoStep(1);
+      setDemoStep(1); // Scramble
       setDemoGrid(prev => {
         const newG = cloneGrid(prev);
-        // Swap Right Column: (0,1) Blue <-> (1,1) Yellow
         const t1 = newG[0][1];
         const t2 = newG[1][1];
         newG[0][1] = t2;
@@ -64,10 +70,8 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
       await new Promise(r => timeout = setTimeout(r, 1500));
       if (isCancelled) return;
 
-      // 3. Solve Simulation
-      setDemoStep(2);
+      setDemoStep(2); // Solve
       
-      // Move to 0,1
       setCursorPos({ r: 0, c: 1, active: false });
       await new Promise(r => timeout = setTimeout(r, 500));
       setCursorPos(prev => ({ ...prev, active: true })); // Click
@@ -75,12 +79,10 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
       setCursorPos(prev => ({ ...prev, active: false }));
       await new Promise(r => timeout = setTimeout(r, 300));
 
-      // Move to 1,1
       setCursorPos({ r: 1, c: 1, active: false });
       await new Promise(r => timeout = setTimeout(r, 500));
       setCursorPos(prev => ({ ...prev, active: true })); // Click
       
-      // Swap Visual
       setDemoGrid(cloneGrid(TARGET_GRID_DATA));
       
       await new Promise(r => timeout = setTimeout(r, 200));
@@ -96,9 +98,11 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
       isCancelled = true;
       clearTimeout(timeout);
     };
-  }, [mode]);
+  }, [slide, mode]);
 
-  // --- INTERACTIVE LOGIC ---
+  // --------------------------------------------------------------------------
+  // SLIDE 1: INTERACTIVE BASICS
+  // --------------------------------------------------------------------------
   const startTest = () => {
     setMode('INTERACTIVE');
     setTestPhase('MEMORIZE');
@@ -108,7 +112,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
   };
 
   useEffect(() => {
-    if (mode !== 'INTERACTIVE') return;
+    if (slide !== 0 || mode !== 'INTERACTIVE') return;
 
     if (testPhase === 'MEMORIZE') {
       if (countDown > 0) {
@@ -121,8 +125,6 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
 
     if (testPhase === 'SCRAMBLE') {
       const timer = setTimeout(() => {
-        // Scramble logic: Flip corners (Top-Left Red <-> Bottom-Right Yellow)
-        // Since all 4 tiles are different colors, this swap is GUARANTEED to be visible.
         setUserGrid(prev => {
            const g = cloneGrid(prev);
            const t1 = g[0][0]; // Red
@@ -135,7 +137,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [mode, testPhase, countDown]);
+  }, [slide, mode, testPhase, countDown]);
 
   const handleUserClick = (r: number, c: number) => {
     if (testPhase !== 'SOLVE') return;
@@ -145,8 +147,6 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
         setSelectedTile(null);
         return;
       }
-
-      // Swap
       const newGrid = cloneGrid(userGrid);
       const t1 = newGrid[selectedTile.r][selectedTile.c];
       const t2 = newGrid[r][c];
@@ -155,175 +155,243 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ onClose, skin }) => {
       setUserGrid(newGrid);
       setSelectedTile(null);
 
-      // Check Win
       let correct = true;
       for(let i=0; i<2; i++) {
         for(let j=0; j<2; j++) {
            if (newGrid[i][j].type !== TARGET_GRID_DATA[i][j].type) correct = false;
         }
       }
-
-      if (correct) {
-        setTestPhase('WON');
-      }
+      if (correct) setTestPhase('WON');
     } else {
       setSelectedTile({ r, c });
     }
   };
 
+  // --------------------------------------------------------------------------
+  // SLIDE 2: POWERUP DEMOS
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    if (slide !== 1) return;
+
+    // Simulate Chaos Bar
+    const interval = setInterval(() => {
+        setChaosBarPercent(prev => {
+            if (activePowerDemo === PowerUpType.FREEZE) return prev; // Frozen
+            if (prev >= 100) return 0;
+            const increment = activePowerDemo === PowerUpType.SLOW_CHAOS ? 0.5 : 2;
+            return prev + increment;
+        });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [slide, activePowerDemo]);
+
+  const triggerPowerDemo = async (type: PowerUpType) => {
+    setActivePowerDemo(type);
+    setPowerGrid(cloneGrid(TARGET_GRID_DATA));
+
+    if (type === PowerUpType.PEEK) {
+        setPowerMessage("PEEK: Shows the target pattern instantly.");
+    } else if (type === PowerUpType.FREEZE) {
+        setPowerMessage("FREEZE: Stops the Chaos Bar for a few seconds.");
+    } else if (type === PowerUpType.SLOW_CHAOS) {
+        setPowerMessage("SLOW: Chaos bar fills up 2x slower.");
+    } else if (type === PowerUpType.LOCK_TILE) {
+        setPowerMessage("LOCK: Prevents a row/column from moving!");
+        // Simulate Locking
+        setTimeout(() => {
+            setPowerGrid(prev => {
+                const g = cloneGrid(prev);
+                g[0][0].isLocked = true;
+                return g;
+            });
+            setPowerMessage("Tile Locked! Now watch Chaos fail...");
+            
+            // Simulate Shift Attempt
+            setTimeout(() => {
+                 // Shake animation logic would go here, effectively visualized by the lock remaining
+                 setPowerMessage("Chaos tried to shift Top Row, but failed!");
+            }, 1500);
+        }, 1000);
+    }
+  };
+
+
+  // --------------------------------------------------------------------------
+  // RENDER
+  // --------------------------------------------------------------------------
   return (
-    <div className="absolute inset-0 z-[70] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="w-full max-w-sm bg-slate-900 rounded-3xl border border-slate-700 shadow-2xl p-6 relative flex flex-col items-center overflow-hidden">
-        
-        {mode === 'WATCH' && (
-             <button 
+    <div className="absolute inset-0 z-[70] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fade-in text-white overflow-hidden">
+      
+      <div className="w-full max-w-sm flex-1 flex flex-col relative">
+        <button 
              onClick={onClose}
-             className="absolute top-4 right-4 p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white transition"
+             className="absolute top-0 right-0 p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white transition z-20"
            >
              <X size={20} />
-           </button>
-        )}
+        </button>
 
-        {/* HEADER */}
-        <h2 className="text-2xl font-display font-bold text-white mb-2 tracking-widest">
-            {mode === 'WATCH' ? 'HOW TO PLAY' : 'SKILL TEST'}
-        </h2>
+        {/* PROGRESS INDICATOR */}
+        <div className="flex justify-center gap-2 mb-4 mt-2">
+            {[0, 1].map(i => (
+                <div key={i} className={`h-1 rounded-full transition-all ${slide === i ? 'w-8 bg-cyan-400' : 'w-2 bg-slate-700'}`} />
+            ))}
+        </div>
 
-        {/* INSTRUCTIONS */}
-        <div className="h-14 flex items-center justify-center mb-6 w-full">
-          <AnimatePresence mode='wait'>
-            {mode === 'WATCH' ? (
-                // DEMO LABELS
+        {/* SLIDE CONTENT */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+            
+            {/* --- SLIDE 1: BASICS --- */}
+            {slide === 0 && (
                 <>
-                {demoStep === 0 && (
-                    <motion.div key="d0" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-center">
-                        <div className="text-green-400 font-bold flex gap-2 items-center justify-center"><BrainCircuit size={18}/> MEMORIZE</div>
-                        <p className="text-slate-500 text-sm">Remember the pattern.</p>
-                    </motion.div>
-                )}
-                {demoStep === 1 && (
-                    <motion.div key="d1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-center">
-                        <div className="text-red-500 font-bold flex gap-2 items-center justify-center"><Shuffle size={18}/> CHAOS</div>
-                        <p className="text-slate-500 text-sm">The grid shifts randomly.</p>
-                    </motion.div>
-                )}
-                {demoStep === 2 && (
-                    <motion.div key="d2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-center">
-                        <div className="text-cyan-400 font-bold flex gap-2 items-center justify-center"><Hand size={18}/> RESTORE</div>
-                        <p className="text-slate-500 text-sm">Swap tiles to fix it.</p>
-                    </motion.div>
-                )}
-                </>
-            ) : (
-                // TEST LABELS
-                <>
-                {testPhase === 'MEMORIZE' && (
-                    <motion.div key="t0" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.5 }} className="text-center">
-                        <div className="text-6xl font-black text-white drop-shadow-lg">{countDown}</div>
-                    </motion.div>
-                )}
-                {testPhase === 'SCRAMBLE' && (
-                    <motion.div key="t1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="text-center">
-                        <div className="text-red-500 font-bold text-xl flex gap-2 items-center justify-center animate-pulse"><Shuffle /> SCRAMBLING...</div>
-                    </motion.div>
-                )}
-                {testPhase === 'SOLVE' && (
-                    <motion.div key="t2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-center">
-                        <div className="text-cyan-400 font-bold flex gap-2 items-center justify-center">YOUR TURN</div>
-                        <p className="text-slate-400 text-sm">Swap tiles to match the pattern!</p>
-                    </motion.div>
-                )}
-                {testPhase === 'WON' && (
-                    <motion.div key="t3" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
-                        <div className="text-green-400 font-bold text-xl flex gap-2 items-center justify-center"><CheckCircle /> EXCELLENT!</div>
-                        <p className="text-slate-400 text-sm">You are ready.</p>
-                    </motion.div>
-                )}
+                    <h2 className="text-2xl font-display font-bold mb-2 tracking-widest text-center">BASICS</h2>
+                    
+                    {/* INSTRUCTION TEXT */}
+                    <div className="h-12 mb-4 w-full text-center">
+                        <AnimatePresence mode='wait'>
+                            {mode === 'WATCH' ? (
+                                demoStep === 0 ? <motion.div key="d0" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="text-green-400 font-bold"><BrainCircuit className="inline mr-1"/> MEMORIZE</motion.div> :
+                                demoStep === 1 ? <motion.div key="d1" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="text-red-500 font-bold"><Shuffle className="inline mr-1"/> CHAOS</motion.div> :
+                                <motion.div key="d2" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="text-cyan-400 font-bold"><Hand className="inline mr-1"/> SWAP TO FIX</motion.div>
+                            ) : (
+                                testPhase === 'MEMORIZE' ? <div className="text-4xl font-bold">{countDown}</div> :
+                                testPhase === 'SCRAMBLE' ? <div className="text-red-500 font-bold">SCRAMBLING...</div> :
+                                testPhase === 'SOLVE' ? <div className="text-cyan-400 font-bold">YOUR TURN</div> :
+                                <div className="text-green-400 font-bold"><CheckCircle className="inline mr-1"/> SOLVED!</div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* GRID */}
+                    <div className="relative w-48 h-48 bg-slate-800 p-2 rounded-xl mb-6 border border-slate-700">
+                        <div className="grid grid-cols-2 gap-2 w-full h-full relative z-10">
+                            {(mode === 'WATCH' ? demoGrid : userGrid).map((row, r) => (
+                                row.map((tile, c) => (
+                                <GridTile
+                                    key={tile.id}
+                                    tile={tile}
+                                    skin={skin}
+                                    isSelected={mode === 'INTERACTIVE' && selectedTile?.r === r && selectedTile?.c === c}
+                                    onClick={() => mode === 'INTERACTIVE' && handleUserClick(r, c)}
+                                    sizeClass="w-full h-full rounded-lg"
+                                />
+                                ))
+                            ))}
+                        </div>
+                        {/* Cursor for Demo */}
+                        {mode === 'WATCH' && demoStep === 2 && cursorPos.r !== -1 && (
+                            <motion.div
+                            className="absolute z-50 text-white drop-shadow-lg pointer-events-none"
+                            animate={{ 
+                                top: `${cursorPos.r * 50 + 25}%`, 
+                                left: `${cursorPos.c * 50 + 25}%`,
+                                scale: cursorPos.active ? 0.8 : 1
+                            }}
+                            >
+                            <Hand size={40} fill={cursorPos.active ? "white" : "transparent"} className="rotate-[-15deg]"/>
+                            </motion.div>
+                        )}
+                    </div>
+
+                    {/* INTERACTIVE TOGGLE */}
+                    <div className="w-full h-12 px-4">
+                        {mode === 'WATCH' ? (
+                            <button onClick={startTest} className="w-full bg-cyan-600 hover:bg-cyan-500 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm shadow-lg">
+                                <Play size={18} fill="currentColor"/> TRY IT
+                            </button>
+                        ) : (
+                            testPhase === 'WON' ? (
+                                <button onClick={() => setSlide(1)} className="w-full bg-green-500 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm shadow-lg animate-pulse">
+                                    NEXT: POWERUPS <ChevronRight size={18}/>
+                                </button>
+                            ) : (
+                                <button onClick={startTest} className="w-full bg-slate-700 py-3 rounded-xl font-bold text-sm text-slate-300">
+                                    <RotateCcw size={16} className="inline mr-1"/> RESET
+                                </button>
+                            )
+                        )}
+                    </div>
                 </>
             )}
-          </AnimatePresence>
+
+            {/* --- SLIDE 2: POWERUPS --- */}
+            {slide === 1 && (
+                <>
+                    <h2 className="text-2xl font-display font-bold mb-4 tracking-widest text-center">SURVIVAL TOOLS</h2>
+                    
+                    {/* MINI HUD SIMULATION */}
+                    <div className="w-full px-8 mb-4">
+                        <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
+                             <div className="flex gap-1"><Heart fill="#ef4444" size={12}/><Heart fill="#ef4444" size={12}/><Heart fill="#334155" size={12}/></div>
+                             <span>CHAOS METER</span>
+                        </div>
+                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                             <motion.div 
+                                className={`h-full ${activePowerDemo === PowerUpType.FREEZE ? 'bg-blue-400' : 'bg-red-500'}`}
+                                style={{ width: `${chaosBarPercent}%` }}
+                             />
+                        </div>
+                    </div>
+
+                    {/* MINI GRID */}
+                    <div className="relative w-32 h-32 bg-slate-800 p-2 rounded-xl mb-4 border border-slate-700">
+                        <div className="grid grid-cols-2 gap-1 w-full h-full">
+                            {powerGrid.map((row, r) => row.map((tile, c) => (
+                                <GridTile key={tile.id} tile={tile} skin={skin} isSelected={false} onClick={()=>{}} sizeClass="w-full h-full rounded-md"/>
+                            )))}
+                        </div>
+                         {/* Peek Overlay */}
+                         {activePowerDemo === PowerUpType.PEEK && (
+                            <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center">
+                                <span className="text-green-400 font-bold text-xs">TARGET</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* INFO TEXT */}
+                    <div className="h-16 w-full px-6 text-center text-sm text-cyan-300 mb-4 flex items-center justify-center bg-slate-900/50 rounded-lg mx-4 border border-slate-800">
+                        {powerMessage}
+                    </div>
+
+                    {/* ICONS ROW */}
+                    <div className="flex gap-4 justify-center w-full px-4">
+                        <button onClick={() => triggerPowerDemo(PowerUpType.FREEZE)} className={`p-4 rounded-xl transition ${activePowerDemo === PowerUpType.FREEZE ? 'bg-blue-600 text-white scale-110 shadow-lg' : 'bg-slate-800 text-blue-400'}`}>
+                            <Snowflake size={24}/>
+                        </button>
+                        <button onClick={() => triggerPowerDemo(PowerUpType.LOCK_TILE)} className={`p-4 rounded-xl transition ${activePowerDemo === PowerUpType.LOCK_TILE ? 'bg-red-600 text-white scale-110 shadow-lg' : 'bg-slate-800 text-red-400'}`}>
+                            <Lock size={24}/>
+                        </button>
+                        <button onClick={() => triggerPowerDemo(PowerUpType.SLOW_CHAOS)} className={`p-4 rounded-xl transition ${activePowerDemo === PowerUpType.SLOW_CHAOS ? 'bg-green-600 text-white scale-110 shadow-lg' : 'bg-slate-800 text-green-400'}`}>
+                            <Turtle size={24}/>
+                        </button>
+                        <button onClick={() => triggerPowerDemo(PowerUpType.PEEK)} className={`p-4 rounded-xl transition ${activePowerDemo === PowerUpType.PEEK ? 'bg-yellow-500 text-white scale-110 shadow-lg' : 'bg-slate-800 text-yellow-400'}`}>
+                            <Eye size={24}/>
+                        </button>
+                    </div>
+                </>
+            )}
+
         </div>
 
-        {/* GRID CONTAINER */}
-        <div className="relative w-48 h-48 bg-slate-800 p-2 rounded-xl mb-8 border border-slate-700 shadow-inner">
-           {/* Color Border State Indicator */}
-           <div className={`absolute inset-0 rounded-xl border-4 transition-colors duration-500 pointer-events-none z-0 ${
-             mode === 'WATCH' 
-                ? (demoStep === 0 ? 'border-green-500/30' : demoStep === 1 ? 'border-red-500/30' : 'border-cyan-500/30')
-                : (testPhase === 'MEMORIZE' ? 'border-white/50' : testPhase === 'SOLVE' ? 'border-cyan-500' : testPhase === 'WON' ? 'border-green-500' : 'border-red-500')
-           }`}></div>
+        {/* BOTTOM NAV */}
+        <div className="flex justify-between mt-6 px-4 pb-4">
+            <button 
+                onClick={() => setSlide(Math.max(0, slide - 1))}
+                disabled={slide === 0}
+                className="text-slate-400 disabled:opacity-30 hover:text-white"
+            >
+                <ChevronLeft size={32} />
+            </button>
 
-           <div className="grid grid-cols-2 gap-2 w-full h-full relative z-10">
-              {(mode === 'WATCH' ? demoGrid : userGrid).map((row, r) => (
-                row.map((tile, c) => (
-                  <GridTile
-                    key={tile.id}
-                    tile={tile}
-                    skin={skin}
-                    isSelected={mode === 'INTERACTIVE' && selectedTile?.r === r && selectedTile?.c === c}
-                    onClick={() => mode === 'INTERACTIVE' && handleUserClick(r, c)}
-                    sizeClass="w-full h-full rounded-lg"
-                  />
-                ))
-              ))}
-           </div>
-
-           {/* Watch Mode Cursor */}
-           {mode === 'WATCH' && demoStep === 2 && cursorPos.r !== -1 && (
-             <motion.div
-               className="absolute z-50 text-white drop-shadow-lg pointer-events-none"
-               animate={{ 
-                 top: `${cursorPos.r * 50 + 25}%`, 
-                 left: `${cursorPos.c * 50 + 25}%`,
-                 scale: cursorPos.active ? 0.8 : 1
-               }}
-               transition={{ duration: 0.4, ease: "circOut" }}
-             >
-               <Hand 
-                size={40} 
-                fill={cursorPos.active ? "white" : "transparent"} 
-                className="rotate-[-15deg]"
-               />
-             </motion.div>
-           )}
-        </div>
-
-        {/* ACTION BUTTONS */}
-        <div className="w-full h-12">
-            <AnimatePresence mode='wait'>
-                {mode === 'WATCH' ? (
-                    <motion.button 
-                        key="try-btn"
-                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                        onClick={startTest}
-                        className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                    >
-                        <Play size={20} fill="currentColor" /> TRY IT YOURSELF
-                    </motion.button>
-                ) : (
-                    testPhase === 'WON' ? (
-                        <motion.button 
-                            key="finish-btn"
-                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                            onClick={onClose}
-                            className="w-full bg-green-500 hover:bg-green-400 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                        >
-                            <CheckCircle size={20} /> START GAME
-                        </motion.button>
-                    ) : (
-                         testPhase === 'SOLVE' && (
-                            <motion.button 
-                                key="reset-btn"
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                onClick={startTest}
-                                className="w-full bg-slate-800 text-slate-400 hover:text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-sm"
-                            >
-                                <RotateCcw size={16} /> RESTART TEST
-                            </motion.button>
-                         )
-                    )
-                )}
-            </AnimatePresence>
+            {slide === TOTAL_SLIDES - 1 ? (
+                <button onClick={onClose} className="bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-2 rounded-full font-bold shadow-lg active:scale-95">
+                    PLAY NOW
+                </button>
+            ) : (
+                <button onClick={() => setSlide(slide + 1)} className="text-white hover:text-cyan-400">
+                    <ChevronRight size={32} />
+                </button>
+            )}
         </div>
 
       </div>

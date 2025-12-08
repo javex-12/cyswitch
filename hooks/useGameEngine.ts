@@ -98,7 +98,10 @@ export const useGameEngine = () => {
     chaosIntervalRef.current = level.chaosInterval;
     setChaosTimer(0);
     setGameState(GameState.MEMORIZING);
-    setMemorizeTime(3); 
+    
+    // Dynamic Memorize Time based on Difficulty
+    setMemorizeTime(level.memorizeTime || 3); 
+
     setScore(0);
     setActiveEffects({ frozen: false, slowed: false, peeking: false });
     
@@ -132,7 +135,8 @@ export const useGameEngine = () => {
         difficulty: 'Insane',
         gridSize: data.length,
         chaosInterval: 8000,
-        targetData: data
+        targetData: data,
+        memorizeTime: 5
       };
       loadLevel(level);
       setCurrentLevelNum(-1);
